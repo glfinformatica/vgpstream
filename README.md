@@ -1,4 +1,10 @@
 # vgp_stream
-```html
-<!-- <meta http-equiv="refresh" content="0; url=pages/signup.html"> -->
-```
+
+# todo
+- add multiple camera
+
+# done
+- code refactoring
+- loading bar
+- snap function
+- bootstrap added
