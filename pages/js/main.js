@@ -31,7 +31,7 @@ function snap(){
 }
 function loaded(){
     document.querySelector("#snap").disabled = false;
-    document.querySelector(".loader").style.display = "none";    
+    document.querySelector("#loaderContainer").remove()
 }
 // Extracted from RTSPtoWeb
 
