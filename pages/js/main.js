@@ -29,52 +29,107 @@ function snap(){
     link.click()
     link.delete
 }
-
-//MIN_PLAYER.JS
-
-//Status constants
-let SESSION_STATUS = Flashphoner.constants.SESSION_STATUS
-let STREAM_STATUS = Flashphoner.constants.STREAM_STATUS
-let session
-let PRELOADER_URL = "https://github.com/flashphoner/flashphoner_client/raw/wcs_api-2.0/examples/demo/dependencies/media/preloader.mp4"
- 
-//Init Flashphoner API on page load
-function init_api() {
-    Flashphoner.init({})
-    //Connect to WCS server over websockets
-    session = Flashphoner.createSession({
-        urlServer: "wss://demo.flashphoner.com" //specify the address of your WCS
-    }).on(SESSION_STATUS.ESTABLISHED, function(session) {
-        console.log("ESTABLISHED")
-    });
- 
-    playBtn.onclick = playClick
+function loaded(){
+    document.querySelector("#snap").disabled = false;
+    document.querySelector(".loader").style.display = "none";    
 }
- 
-//Detect browser
-let Browser = {
-    isSafari: function() {
-        return /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
-    },
+// Extracted from RTSPtoWeb
+
+let mseQueue = [],
+mseSourceBuffer,
+mseStreamingStarted = false;
+
+function startPlay() {
+    let videoEl = document.querySelector('#videoPlayer');
+    let url = 'ws://svn.ns0.it:8083/stream/otacos/channel/0/mse?uuid=otacos&channel=0';
+
+    //location.protocol == 'https:' ? protocol = 'wss' : protocol = 'ws';
+    let mse = new MediaSource();
+    //videoEl.src = window.URL.createObjectURL(mse);
+    videoEl.src = window.URL.createObjectURL(mse);
+
+    mse.addEventListener('sourceopen', function() {
+    
+        let ws = new WebSocket(url);
+        ws.binaryType = 'arraybuffer';
+        ws.onopen = function(event) {
+            console.log('Connect to ws');
+        }
+        ws.onmessage = function(event) {
+            let data = new Uint8Array(event.data);
+            if (data[0] == 9) {
+                decoded_arr = data.slice(1);
+                if (window.TextDecoder) {
+                    mimeCodec = new TextDecoder('utf-8').decode(decoded_arr);
+                } else {
+                    mimeCodec = Utf8ArrayToStr(decoded_arr);
+                }
+                mseSourceBuffer = mse.addSourceBuffer('video/mp4; codecs="' + mimeCodec + '"');
+                mseSourceBuffer.mode = 'segments'
+                mseSourceBuffer.addEventListener('updateend', pushPacket);
+
+            } else {
+                readPacket(event.data);
+            }
+        };
+    }, false);
+
 }
 
-function playClick() {
-    document.getElementById('snap').disabled = false
-    if (Browser.isSafari()) {
-        Flashphoner.playFirstVideo(document.getElementById('play'), true, PRELOADER_URL).then(function() {
-            playStream()
-        });
-    } else {
-        playStream()
+function pushPacket() {
+    let videoEl = document.querySelector('#videoPlayer');
+
+    if (!mseSourceBuffer.updating) {
+        if (mseQueue.length > 0) {
+            packet = mseQueue.shift();
+            mseSourceBuffer.appendBuffer(packet);
+        } else {
+            mseStreamingStarted = false;
+        }
     }
-    document.getElementById('playBtn').disabled = true
-}
- 
-//Playing stream
-function playStream() {
-    session.createStream({
-        name: RTSPaddress, //specify the RTSP stream address
-        display: document.getElementById('play'),
-    }).play()
+    if (videoEl.buffered.length <= 0) 
+        return
+    
+    if (typeof document.hidden !== 'undefined' && document.hidden) {
+        //no sound, browser paused video without sound in background
+        videoEl.currentTime = videoEl.buffered.end((videoEl.buffered.length - 1)) - 0.5;
+    }
 }
 
+function readPacket(packet) {
+    if (!mseStreamingStarted) {
+        mseSourceBuffer.appendBuffer(packet);
+        mseStreamingStarted = true;
+        return;
+    }
+    mseQueue.push(packet);
+    
+    if (!mseSourceBuffer.updating) {
+        pushPacket();
+    }
+}
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    let videoEl = document.querySelector('#videoPlayer');
+
+    videoEl.addEventListener('loadeddata', () => {
+        videoEl.play();
+        loaded();
+    });
+
+    //fix stalled video in safari
+    videoEl.addEventListener('pause', () => {
+        if (videoEl.currentTime > videoEl.buffered.end(videoEl.buffered.length - 1)) {
+            videoEl.currentTime = videoEl.buffered.end(videoEl.buffered.length - 1) - 0.1;
+            videoEl.play();
+        }
+    });
+
+    videoEl.addEventListener('error', (e) => {
+        console.log('video_error', e)
+    });
+
+    startPlay();
+
+});
