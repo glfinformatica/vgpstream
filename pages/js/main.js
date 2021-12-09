@@ -1,14 +1,18 @@
 //Config
 
-let RTSPaddress = "rtsp://admin:briciola2015!@82.62.31.20:554/media/video2"
 let snapWidth = 1280
 let snapHeight = 720
+
+let videoEl = document.querySelector('#videoPlayer');
+let inputUrl  = document.querySelector('#mse-url');
 
 //Snap
 
 function snap(){
-                
-    let video = document.querySelector('video')
+    
+    if(videoEl == undefined)
+        return
+    
     let canvas = document.createElement('canvas')
     
     canvas.width = snapWidth
@@ -16,12 +20,12 @@ function snap(){
     let ctx = canvas.getContext('2d')
     
     
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height)
     
     //convert to desired file format
     let dataURI = canvas.toDataURL('image/jpeg')
     
-    console.log(dataURI)
+    // console.log(dataURI)
 
     const link = document.createElement('a')
     link.download = 'snap.png'
@@ -29,9 +33,17 @@ function snap(){
     link.click()
     link.delete
 }
+
 function loaded(){
-    document.querySelector("#snap").disabled = false;
-    document.querySelector("#loaderContainer").remove()
+    
+    let snapBtn = document.querySelector("#snap");
+    if(snapBtn != undefined)
+        snapBtn.disabled = false;
+    
+    let loader = document.querySelector("#loaderContainer");
+    if(loader != undefined){
+        loader.remove();
+    }
 }
 // Extracted from RTSPtoWeb
 
@@ -40,44 +52,42 @@ mseSourceBuffer,
 mseStreamingStarted = false;
 
 function startPlay() {
-    let videoEl = document.querySelector('#videoPlayer');
-    let url = 'ws://svn.ns0.it:8083/stream/otacos/channel/0/mse?uuid=otacos&channel=0';
+    if(videoEl == undefined || inputUrl == undefined)
+        return
 
-    //location.protocol == 'https:' ? protocol = 'wss' : protocol = 'ws';
+    let url = inputUrl.ariaValueMax;
     let mse = new MediaSource();
-    //videoEl.src = window.URL.createObjectURL(mse);
     videoEl.src = window.URL.createObjectURL(mse);
 
-    mse.addEventListener('sourceopen', function() {
+    mse.onsourceopen = () => {
     
         let ws = new WebSocket(url);
         ws.binaryType = 'arraybuffer';
-        ws.onopen = function(event) {
+        
+        ws.onopen = (event) => {
             console.log('Connect to ws');
         }
-        ws.onmessage = function(event) {
-            let data = new Uint8Array(event.data);
-            if (data[0] == 9) {
-                decoded_arr = data.slice(1);
-                if (window.TextDecoder) {
-                    mimeCodec = new TextDecoder('utf-8').decode(decoded_arr);
-                } else {
-                    mimeCodec = Utf8ArrayToStr(decoded_arr);
-                }
-                mseSourceBuffer = mse.addSourceBuffer('video/mp4; codecs="' + mimeCodec + '"');
-                mseSourceBuffer.mode = 'segments'
-                mseSourceBuffer.addEventListener('updateend', pushPacket);
 
-            } else {
+        ws.onmessage = (event) => {
+            let data = new Uint8Array(event.data);
+
+            if (data[0] != 9){
                 readPacket(event.data);
+                return;
             }
+            
+            decoded_arr = data.slice(1);
+            mimeCodec = (window.TextDecoder) ? new TextDecoder('utf-8').decode(decoded_arr) : Utf8ArrayToStr(decoded_arr);
+
+            mseSourceBuffer = mse.addSourceBuffer('video/mp4; codecs="' + mimeCodec + '"');
+            mseSourceBuffer.mode = 'segments';
+            mseSourceBuffer.onupdateend = () => { pushPacket() };
         };
-    }, false);
+    }, false;
 
 }
 
 function pushPacket() {
-    let videoEl = document.querySelector('#videoPlayer');
 
     if (!mseSourceBuffer.updating) {
         if (mseQueue.length > 0) {
@@ -97,11 +107,13 @@ function pushPacket() {
 }
 
 function readPacket(packet) {
+    
     if (!mseStreamingStarted) {
         mseSourceBuffer.appendBuffer(packet);
         mseStreamingStarted = true;
         return;
     }
+    
     mseQueue.push(packet);
     
     if (!mseSourceBuffer.updating) {
@@ -110,23 +122,29 @@ function readPacket(packet) {
 }
 
 
-document.addEventListener('DOMContentLoaded', function() {
-    let videoEl = document.querySelector('#videoPlayer');
+document.addEventListener('DOMContentLoaded', () => {
+    
+    if(videoEl == undefined || inputUrl == undefined)
+        return
 
     videoEl.addEventListener('loadeddata', () => {
+
         videoEl.play();
         loaded();
     });
 
     //fix stalled video in safari
     videoEl.addEventListener('pause', () => {
-        if (videoEl.currentTime > videoEl.buffered.end(videoEl.buffered.length - 1)) {
-            videoEl.currentTime = videoEl.buffered.end(videoEl.buffered.length - 1) - 0.1;
-            videoEl.play();
-        }
+
+        if (videoEl.currentTime <= videoEl.buffered.end(videoEl.buffered.length - 1)) 
+            return     
+               
+        videoEl.currentTime = videoEl.buffered.end(videoEl.buffered.length - 1) - 0.1;
+        videoEl.play();
     });
 
     videoEl.addEventListener('error', (e) => {
+
         console.log('video_error', e)
     });
 
