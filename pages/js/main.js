@@ -1,3 +1,11 @@
+//smartphone testing
+
+// window.onerror = function(error, url, line) {
+//     alert('ERRRO: ' + error);
+//     alert('AT LINE: + 'line);
+// };
+
+
 //Config
 
 let snapWidth = 1280
@@ -14,6 +22,7 @@ if(videoEl != undefined){
         }
     });
 }
+
 //Snap
 
 function snap(){
