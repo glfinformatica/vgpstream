@@ -6,44 +6,85 @@ let snapHeight = 720
 let videoEl = document.querySelector('#videoPlayer');
 let inputUrl  = document.querySelector('#mse-url');
 
+if(videoEl != undefined){
+
+    window.addEventListener('resize', () => {
+        if(videoEl.classList.contains("flipped")){
+            videoEl.parentElement.style.height = videoEl.offsetWidth + 'px';
+        }
+    });
+}
 //Snap
 
 function snap(){
     
     if(videoEl == undefined)
-        return
+        return;
     
-    let canvas = document.createElement('canvas')
+    let canvas = document.createElement('canvas');
+    let ctx = canvas.getContext('2d');
     
-    canvas.width = snapWidth
-    canvas.height = snapHeight
-    let ctx = canvas.getContext('2d')
-    
-    
-    ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height)
+    if(videoEl.classList.contains("flipped")){
+        
+        canvas.width = snapHeight;
+        canvas.height = snapWidth;
+
+        var x = canvas.width / 2;
+        var y = canvas.height / 2;
+        var angle = 90 * Math.PI/180;
+
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.drawImage(videoEl, -canvas.height / 2, -canvas.width / 2, canvas.height, canvas.width);
+        ctx.rotate(angle);
+        ctx.translate(-x, -y);
+    }else{
+
+        canvas.width = snapWidth;
+        canvas.height = snapHeight;
+        ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+    }
     
     //convert to desired file format
-    let dataURI = canvas.toDataURL('image/jpeg')
+    let dataURI = canvas.toDataURL('image/jpeg');
     
     // console.log(dataURI)
 
-    const link = document.createElement('a')
-    link.download = 'snap.png'
-    link.href = dataURI
-    link.click()
-    link.delete
-}
+    const link = document.createElement('a');
+    link.download = 'snap.png';
+    link.href = dataURI;
+    link.click();
+    link.delete;
 
+}
+function flip(){
+    if(videoEl  == undefined)
+        return;
+
+    videoEl.classList.toggle("flipped");
+    
+    if(videoEl.classList.contains("flipped"))
+        videoEl.parentElement.style.height = videoEl.offsetWidth + 'px';
+    else
+        videoEl.parentElement.style.height = 'auto';
+}
 function loaded(){
     
     let snapBtn = document.querySelector("#snap");
     if(snapBtn != undefined)
         snapBtn.disabled = false;
     
+    let flipBtn = document.querySelector("#flip");
+    if(flipBtn != undefined){
+        flipBtn.disabled = false;
+        flip();
+    }
+    
     let loader = document.querySelector("#loaderContainer");
     if(loader != undefined){
         loader.remove();
     }
+
 }
 // Extracted from RTSPtoWeb
 
@@ -55,7 +96,7 @@ function startPlay() {
     if(videoEl == undefined || inputUrl == undefined)
         return
 
-    let url = inputUrl.ariaValueMax;
+    let url = inputUrl.value;
     let mse = new MediaSource();
     videoEl.src = window.URL.createObjectURL(mse);
 
