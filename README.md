@@ -5,6 +5,7 @@
 - flip ontilt
 
 # done
+- hls
 - smartphone testing inside main.js
 - flip button
 - code refactoring

@@ -11,8 +11,8 @@
 let snapWidth = 1280
 let snapHeight = 720
 
-let videoEl = document.querySelector('#videoPlayer');
-let inputUrl  = document.querySelector('#mse-url');
+let videoEl = document.querySelector('#hls-video');
+let inputUrl  = document.querySelector('#hls-url');
 
 if(videoEl != undefined){
 
@@ -96,108 +96,31 @@ function loaded(){
 
 }
 // Extracted from RTSPtoWeb
-
-let mseQueue = [],
-mseSourceBuffer,
-mseStreamingStarted = false;
-
-function startPlay() {
-    if(videoEl == undefined || inputUrl == undefined)
-        return
-
-    let url = inputUrl.value;
-    let mse = new MediaSource();
-    videoEl.src = window.URL.createObjectURL(mse);
-
-    mse.onsourceopen = () => {
-    
-        let ws = new WebSocket(url);
-        ws.binaryType = 'arraybuffer';
-        
-        ws.onopen = (event) => {
-            console.log('Connect to ws');
-        }
-
-        ws.onmessage = (event) => {
-            let data = new Uint8Array(event.data);
-
-            if (data[0] != 9){
-                readPacket(event.data);
-                return;
-            }
-            
-            decoded_arr = data.slice(1);
-            mimeCodec = (window.TextDecoder) ? new TextDecoder('utf-8').decode(decoded_arr) : Utf8ArrayToStr(decoded_arr);
-
-            mseSourceBuffer = mse.addSourceBuffer('video/mp4; codecs="' + mimeCodec + '"');
-            mseSourceBuffer.mode = 'segments';
-            mseSourceBuffer.onupdateend = () => { pushPacket() };
-        };
-    }, false;
-
-}
-
-function pushPacket() {
-
-    if (!mseSourceBuffer.updating) {
-        if (mseQueue.length > 0) {
-            packet = mseQueue.shift();
-            mseSourceBuffer.appendBuffer(packet);
-        } else {
-            mseStreamingStarted = false;
-        }
-    }
-    if (videoEl.buffered.length <= 0) 
-        return
-    
-    if (typeof document.hidden !== 'undefined' && document.hidden) {
-        //no sound, browser paused video without sound in background
-        videoEl.currentTime = videoEl.buffered.end((videoEl.buffered.length - 1)) - 0.5;
-    }
-}
-
-function readPacket(packet) {
-    
-    if (!mseStreamingStarted) {
-        mseSourceBuffer.appendBuffer(packet);
-        mseStreamingStarted = true;
-        return;
-    }
-    
-    mseQueue.push(packet);
-    
-    if (!mseSourceBuffer.updating) {
-        pushPacket();
-    }
-}
-
-
-document.addEventListener('DOMContentLoaded', () => {
-    
-    if(videoEl == undefined || inputUrl == undefined)
-        return
+document.addEventListener('DOMContentLoaded', function() {
+    let videoEl = document.querySelector('#hls-video');
+    let url = document.querySelector('#hls-url').value;
 
     videoEl.addEventListener('loadeddata', () => {
-
-        videoEl.play();
-        loaded();
-    });
-
-    //fix stalled video in safari
-    videoEl.addEventListener('pause', () => {
-
-        if (videoEl.currentTime <= videoEl.buffered.end(videoEl.buffered.length - 1)) 
-            return     
-               
-        videoEl.currentTime = videoEl.buffered.end(videoEl.buffered.length - 1) - 0.1;
-        videoEl.play();
+      videoEl.play();
+      loaded();
     });
 
     videoEl.addEventListener('error', (e) => {
-
-        console.log('video_error', e)
+      console.log('video_error', e)
     });
 
-    startPlay();
-
-});
+    if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+      videoEl.src = url;
+    } else if (Hls.isSupported()) {
+      var hls = new Hls();
+      hls.attachMedia(videoEl);
+      hls.on(Hls.Events.MEDIA_ATTACHED, function () {
+        hls.loadSource(url);
+        hls.on(Hls.Events.MANIFEST_PARSED, function (event, data) {
+          console.log(
+            'manifest loaded, found ' + data.levels.length + ' quality level'
+          );
+        });
+      });
+    }
+  });
