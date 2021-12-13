@@ -16,11 +16,28 @@ let inputUrl  = document.querySelector('#hls-url');
 
 if(videoEl != undefined){
 
-    window.addEventListener('resize', () => {
-        if(videoEl.classList.contains("flipped")){
-            videoEl.parentElement.style.height = videoEl.offsetWidth + 'px';
-        }
+	window.addEventListener('resize', () => {
+      	setDimensions();
     });
+}
+
+function flip(){
+  	if(videoEl  == undefined)
+		return;
+
+  	videoEl.classList.toggle("flipped");
+  
+  	setDimensions();
+}
+
+function setDimensions(){
+  	
+	if(videoEl.classList.contains("flipped")){
+    	videoEl.parentElement.style.height = videoEl.offsetWidth + 'px';
+    	return
+  	}
+
+  	videoEl.parentElement.style.height = 'auto';
 }
 
 //Snap
@@ -35,7 +52,7 @@ function snap(){
     
     if(videoEl.classList.contains("flipped")){
         
-        canvas.width = snapHeight;
+    	canvas.width = snapHeight;
         canvas.height = snapWidth;
 
         var x = canvas.width / 2;
@@ -66,17 +83,6 @@ function snap(){
     link.delete;
 
 }
-function flip(){
-    if(videoEl  == undefined)
-        return;
-
-    videoEl.classList.toggle("flipped");
-    
-    if(videoEl.classList.contains("flipped"))
-        videoEl.parentElement.style.height = videoEl.offsetWidth + 'px';
-    else
-        videoEl.parentElement.style.height = 'auto';
-}
 function loaded(){
     
     let snapBtn = document.querySelector("#snap");
@@ -95,32 +101,34 @@ function loaded(){
     }
 
 }
+
 // Extracted from RTSPtoWeb
+
 document.addEventListener('DOMContentLoaded', function() {
     let videoEl = document.querySelector('#hls-video');
     let url = document.querySelector('#hls-url').value;
 
     videoEl.addEventListener('loadeddata', () => {
-      videoEl.play();
-      loaded();
+    	videoEl.play();
+    	loaded();
     });
 
     videoEl.addEventListener('error', (e) => {
-      console.log('video_error', e)
+      	console.log('video_error', e)
     });
 
     if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
-      videoEl.src = url;
+      	videoEl.src = url;
     } else if (Hls.isSupported()) {
-      var hls = new Hls();
-      hls.attachMedia(videoEl);
-      hls.on(Hls.Events.MEDIA_ATTACHED, function () {
-        hls.loadSource(url);
-        hls.on(Hls.Events.MANIFEST_PARSED, function (event, data) {
-          console.log(
-            'manifest loaded, found ' + data.levels.length + ' quality level'
-          );
-        });
-      });
+		var hls = new Hls();
+		hls.attachMedia(videoEl);
+		hls.on(Hls.Events.MEDIA_ATTACHED, function () {
+			hls.loadSource(url);
+			hls.on(Hls.Events.MANIFEST_PARSED, function (event, data) {
+          		console.log(
+            		'manifest loaded, found ' + data.levels.length + ' quality level'
+          		);
+        	});
+      	});
     }
-  });
+});
